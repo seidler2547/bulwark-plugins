@@ -50,6 +50,88 @@ services:
       retries: 60
       start_period: 60s
 
+  # Seafile keeps its records in MariaDB and its cache in Redis.
+  seafile-db:
+    image: mariadb:10.11
+    container_name: bpt-seafile-db
+    volumes:
+      - seafile-db:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${SEAFILE_DB_ROOT_PASSWORD:-root-pass-123}
+      MYSQL_LOG_CONSOLE: "true"
+      MARIADB_AUTO_UPGRADE: "1"
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh", "--connect", "--mariadbupgrade", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  seafile-redis:
+    image: redis:8.2.10-alpine
+    container_name: bpt-seafile-redis
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  seafile:
+    image: seafileltd/seafile-mc:14.0.9
+    container_name: bpt-seafile
+    depends_on:
+      seafile-db:
+        condition: service_healthy
+      seafile-redis:
+        condition: service_healthy
+    ports:
+      - "18090:80"
+    volumes:
+      - seafile-data:/shared
+    environment:
+      SEAFILE_MYSQL_DB_HOST: seafile-db
+      SEAFILE_MYSQL_DB_PORT: "3306"
+      SEAFILE_MYSQL_DB_USER: seafile
+      SEAFILE_MYSQL_DB_PASSWORD: ${SEAFILE_DB_PASSWORD:-seafile-pass-123}
+      INIT_SEAFILE_MYSQL_ROOT_PASSWORD: ${SEAFILE_DB_ROOT_PASSWORD:-root-pass-123}
+      SEAFILE_MYSQL_DB_CCNET_DB_NAME: ccnet_db
+      SEAFILE_MYSQL_DB_SEAFILE_DB_NAME: seafile_db
+      SEAFILE_MYSQL_DB_SEAHUB_DB_NAME: seahub_db
+      INIT_SEAFILE_ADMIN_EMAIL: admin@example.org
+      INIT_SEAFILE_ADMIN_PASSWORD: ${SEAFILE_ADMIN_PASSWORD:-admin-pass-123}
+      # Seafile builds every link it hands out (sign-in, downloads, uploads,
+      # shares) from this address, so it is the one the browser and the
+      # webmail use. For a webmail in a container on this network, set
+      # SEAFILE_HOSTNAME=bpt-seafile before the first start; the browser that
+      # signs in then has to be on this network too (see README.md).
+      SEAFILE_SERVER_HOSTNAME: ${SEAFILE_HOSTNAME:-localhost:18090}
+      SEAFILE_SERVER_PROTOCOL: http
+      # The first-run setup only takes a name without a port; this is what
+      # it reads instead of SEAFILE_SERVER_HOSTNAME.
+      SERVER_IP: 127.0.0.1
+      JWT_PRIVATE_KEY: bulwark-plugin-test-only-not-secret-0123456789
+      TIME_ZONE: Europe/Berlin
+      SITE_ROOT: /
+      NON_ROOT: "false"
+      SEAFILE_LOG_TO_STDOUT: "true"
+      ENABLE_GO_FILESERVER: "true"
+      ENABLE_SEAFDAV: "false"
+      ENABLE_SEADOC: "false"
+      ENABLE_NOTIFICATION_SERVER: "false"
+      ENABLE_SEAFILE_AI: "false"
+      ENABLE_METADATA_MANAGEMENT: "False"
+      CACHE_PROVIDER: redis
+      REDIS_HOST: seafile-redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ""
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1/api2/ping/ | grep -q pong"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 60s
+
   paperless-redis:
     image: redis:8.2.10-alpine
     container_name: bpt-paperless-redis
@@ -166,6 +248,8 @@ volumes:
   stalwart-data:
   stalwart-config:
   nextcloud-html:
+  seafile-db:
+  seafile-data:
   paperless-redis:
   paperless-data:
   paperless-media:

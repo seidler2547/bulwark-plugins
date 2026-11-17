@@ -2812,6 +2812,9 @@ through the proxy with `capture: { secret: 'appPassword', username: 'loginName' 
 when the answer contains those JSON fields, the proxy stores them as the
 credential and returns the rest of the answer with `captured: true`. The
 plugin never sees the password. See `nextcloud/src/lib/connection.js`.
+Seafile's sign-in for its clients works the same way and also covers
+accounts that only have single sign-on; there the plugin captures
+`apiToken` and `username`. See `seafile/src/lib/connection.js`.
 
 ## Testing
 
@@ -2843,7 +2846,7 @@ Specs live in `<plugin>/e2e/` and run with `npm run test:e2e`.
 `BULWARK_PASSWORD` point it at your setup.
 
 **Test services.** `test-env/` starts Stalwart (mail, calendar, contacts,
-files), Nextcloud, Paperless-ngx, Vikunja, a mock server for paid APIs and,
+files), Nextcloud, Seafile, Paperless-ngx, Vikunja, a mock server for paid APIs and,
 optionally, Ollama in Docker, seeded with test data. See
 [test-env/README.md](test-env/README.md).
 

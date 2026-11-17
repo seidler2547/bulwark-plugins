@@ -1,7 +1,7 @@
 # Plugin test environment
 
 Local Docker services for testing the Bulwark plugins end to end: Stalwart for
-mail, JMAP and CalDAV, Nextcloud, Paperless-ngx, Vikunja, Donetick, a mock
+mail, JMAP and CalDAV, Nextcloud, Seafile, Paperless-ngx, Vikunja, Donetick, a mock
 server for the paid APIs (Anthropic, OpenAI, Todoist, 17TRACK, DHL) and,
 optionally, Ollama.
 Everything runs on your machine.
@@ -40,6 +40,7 @@ them together with the volumes.
 | --- | --- | --- | --- | --- |
 | Stalwart (JMAP, CalDAV, SMTP) | http://localhost:18025, SMTP submission `localhost:11587` | built from `stalwart/` (`stalwartlabs/stalwart:v0.16`) | `alice@example.org`, `bob@example.org`, `carol@example.org`, password `test-pass-123` | `caldav.json` |
 | Nextcloud | http://localhost:18080 | `nextcloud:34.0.4-apache` | `admin` / `admin-pass-123`, `alice` / `alice-pass-123` plus an app password | `nextcloud.json` |
+| Seafile | http://localhost:18090 | `seafileltd/seafile-mc:14.0.9`, `mariadb:10.11`, `redis:8.2.10-alpine` | `admin@example.org` / `admin-pass-123`, `alice@example.org` / `alice-pass-123` plus an API token, `bob@example.org` / `bob-pass-123` | `seafile.json` |
 | Paperless-ngx | http://localhost:18010 | `ghcr.io/paperless-ngx/paperless-ngx:3.2.1`, `redis:8.2.10-alpine` | `admin` / `admin-pass-123` plus an API token | `paperless.json` |
 | Vikunja | http://localhost:18456 | `vikunja/vikunja:2.6.0` | `alice` / `alice-pass-123` plus an API token | `vikunja.json` |
 | Donetick | http://localhost:18021 | `donetick/donetick:v0.1.85` | `alice` / `alice-pass-123` plus an access token | `donetick.json` |
@@ -100,6 +101,48 @@ Useful endpoints:
 The webmail calls Nextcloud through its own server-side proxy, so Nextcloud
 needs no CORS setup.
 
+### Seafile
+
+Seafile Community Edition with MariaDB and Redis, installed automatically on
+first start. `seed/seed_seafile.py` adds two lines to its
+`seahub_settings.py` and restarts Seafile's web part when they were missing:
+`CLIENT_SSO_VIA_LOCAL_BROWSER = True`, the sign-in through the browser that
+the Seafile plugin connects with, and `FORCE_PASSWORD_CHANGE = False`, so the
+seeded users can sign in with the passwords above.
+
+Seeded for alice:
+
+- library `Documents`: `Welcome.txt`, `Report 2026.pdf`, `Invoices/invoice-2026-10.pdf`
+- library `Photos`: `blue.png`, `orange.png`
+- library `Projects`: `Bulwark/notes.txt` (UTF-8 umlauts), `Bulwark/plan.md`
+- library `Large`: `random-60mb.bin`, 60 MB of random data for chunked transfer tests
+- favorites: `Documents/Welcome.txt` and the folder `Projects/Bulwark`
+- a public share link on `Documents/Report 2026.pdf` (URL in `seafile.json`)
+- bob's library `Team`, shared with alice read-only
+- a Web API token (header `Authorization: Token <token>`)
+
+Useful endpoints:
+
+- libraries: `GET http://localhost:18090/api/v2.1/repos/`
+- sign-in link for clients: `POST http://localhost:18090/api2/client-sso-link/`
+- share links: `http://localhost:18090/api/v2.1/multi-share-links/`
+
+Seafile builds every link it hands out (the sign-in page, downloads, uploads,
+share links) from `SEAFILE_SERVER_HOSTNAME`, here `localhost:18090`. The
+webmail must reach Seafile at that same address, or the plugin's uploads and
+downloads fail with "Seafile hands out file addresses on another server".
+For a webmail in a container on the compose network, start the environment
+with `SEAFILE_HOSTNAME=bpt-seafile` before the first `up`. The seed still
+works from the host: it sends uploads to `http://localhost:18090` whatever
+address Seafile names. The browser that signs in to Seafile must then reach
+`http://bpt-seafile` as well, because Seafile's sign-in page is on that
+address too: run it on the compose network, like the webmail.
+
+To try single sign-on, add Seafile's OAuth settings (`ENABLE_OAUTH`,
+`OAUTH_*`) to `/shared/seafile/conf/seahub_settings.py` in the container and
+run `/opt/seafile/seafile-server-latest/seahub.sh restart`. The plugin's
+sign-in then goes through the identity provider.
+
 ### Paperless-ngx
 
 SQLite, Redis for the task queue, OCR set to `skip` so the seeded PDFs, which
@@ -159,14 +202,14 @@ For a webmail running on the host (for example `npm run dev`), put this in its
 `.env.local`:
 
 ```
-PLUGIN_PROXY_PRIVATE_ORIGINS=http://localhost:18025,http://localhost:18080,http://localhost:18010,http://localhost:18456,http://localhost:18021,http://localhost:18099,http://localhost:11434
+PLUGIN_PROXY_PRIVATE_ORIGINS=http://localhost:18025,http://localhost:18080,http://localhost:18090,http://localhost:18010,http://localhost:18456,http://localhost:18021,http://localhost:18099,http://localhost:11434
 ```
 
 The value is compared by origin, so use exactly the URLs you enter in the
 plugin settings: `http://127.0.0.1:18080` is not the same origin as
 `http://localhost:18080`. If the webmail runs in a container on the
 `bulwark-plugins-test_default` network, use the container names instead
-(`http://bpt-nextcloud`, `http://bpt-paperless:8000`, `http://bpt-vikunja:3456`,
+(`http://bpt-nextcloud`, `http://bpt-seafile`, `http://bpt-paperless:8000`, `http://bpt-vikunja:3456`,
 `http://bpt-donetick:2021`, `http://bpt-mocks:18099`, `http://bpt-ollama:11434`,
 `http://bpt-stalwart:8080`)
 both in the plugin settings and in `PLUGIN_PROXY_PRIVATE_ORIGINS`.
@@ -184,5 +227,5 @@ both in the plugin settings and in `PLUGIN_PROXY_PRIVATE_ORIGINS`.
 ## Ports
 
 18025 (Stalwart HTTP), 11587 (Stalwart SMTP submission), 18080 (Nextcloud),
-18010 (Paperless), 18456 (Vikunja), 18021 (Donetick), 18099 (mocks), 11434
+18090 (Seafile), 18010 (Paperless), 18456 (Vikunja), 18021 (Donetick), 18099 (mocks), 11434
 (Ollama). They stay clear of 3000, 3100, 5432 and 8080.

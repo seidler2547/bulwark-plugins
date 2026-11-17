@@ -13,11 +13,12 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _common import HERE, SECRETS, read_secret  # noqa: E402
 
-SEEDS = ['seed_mail.py', 'seed_caldav.py', 'seed_nextcloud.py', 'seed_paperless.py', 'seed_vikunja.py', 'seed_donetick.py']
+SEEDS = ['seed_mail.py', 'seed_caldav.py', 'seed_nextcloud.py', 'seed_seafile.py', 'seed_paperless.py', 'seed_vikunja.py', 'seed_donetick.py']
 
 
 def summary(with_ai):
     nc = read_secret('nextcloud') or {}
+    sf = read_secret('seafile') or {}
     pl = read_secret('paperless') or {}
     vk = read_secret('vikunja') or {}
     cd = read_secret('caldav') or {}
@@ -31,6 +32,10 @@ def summary(with_ai):
          f'admin / {nc.get("admin", {}).get("password", "?")}, alice / {nc.get("password", "?")}, '
          f'app password {nc.get("appPassword", "?")}'),
         ('  Share link', nc.get('shareLink', '-'), nc.get('sharedFile', '')),
+        ('Seafile', sf.get('url', 'http://localhost:18090'),
+         f'{sf.get("admin", {}).get("user", "admin@example.org")} / {sf.get("admin", {}).get("password", "?")}, '
+         f'{sf.get("user", "alice@example.org")} / {sf.get("password", "?")}, API token {sf.get("token", "?")}'),
+        ('  Share link', sf.get('shareLink', '-'), sf.get('sharedFile', '')),
         ('Paperless-ngx', pl.get('url', 'http://localhost:18010'),
          f'admin / {pl.get("admin", {}).get("password", "?")}, token {pl.get("token", "?")}'),
         ('Vikunja', vk.get('url', 'http://localhost:18456'),
@@ -50,7 +55,7 @@ def summary(with_ai):
             print(f'  {"".ljust(width)}  {creds}')
     print(f'\nSecrets: {SECRETS}')
     print('Webmail proxy: PLUGIN_PROXY_PRIVATE_ORIGINS='
-          'http://localhost:18025,http://localhost:18080,http://localhost:18010,http://localhost:18456,http://localhost:18021,http://localhost:18099'
+          'http://localhost:18025,http://localhost:18080,http://localhost:18090,http://localhost:18010,http://localhost:18456,http://localhost:18021,http://localhost:18099'
           + (',http://localhost:11434' if with_ai else ''))
 
 

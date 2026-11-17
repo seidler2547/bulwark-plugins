@@ -7,7 +7,7 @@ with the tools to build and test them:
 - `scripts/build.mjs`, which bundles and packages a plugin;
 - `scripts/gen-docs.mjs`, which refreshes the reference tables in the guide;
 - `test-utils/` and `e2e/`, helpers for unit and end-to-end tests;
-- `test-env/`, Docker services to test against (Stalwart, Nextcloud,
+- `test-env/`, Docker services to test against (Stalwart, Nextcloud, Seafile,
   Paperless-ngx, Vikunja, mock APIs, Ollama);
 - [WRITING_PLUGINS.md](WRITING_PLUGINS.md), the guide for plugin authors, with
   screenshots of every place a plugin can show something in `docs/screenshots/`.
@@ -37,6 +37,7 @@ with the tools to build and test them:
 | [plugin-template](plugin-template/) | A starting point for a new plugin | `email:read` `ui:sidebar-widget` |
 | [quick-notes](quick-notes/) | Notes per message, shown again when you open it | `email:read` `ui:email-banner` `ui:email-details` |
 | [reply-all-guardrail](reply-all-guardrail/) | Asks before a reply-all (or any send) to more recipients than a limit | `email:read` `email:send` `admin:config` |
+| [seafile](seafile/) | Attach files from Seafile, send large files as share links, save attachments and messages there; signs in through Seafile's own page, also with single sign-on | `http:proxy` `ui:settings-section` `ui:composer-toolbar` `email:read` `email:blob-write` `compose:write` `email:blob-read` `ui:toolbar` `ui:app-page` `compose:open` `ui:download-file` |
 | [slot-showcase](slot-showcase/) | For plugin authors: a labelled box in every UI slot and a button on every action surface | every `ui:*` permission, plus `account:read` `email:read` `email:send` `compose:open` `calendar:read` `contacts:read` `tasks:read` `files:read` |
 | [smime](smime/) | S/MIME signing and encryption, verifying and decrypting, with keys kept in the browser (privileged tier) | `crypto:full` `email:blob-read` `email:raw-send` `email:render-takeover` `email:read` `email:send` `smime:read` `ui:composer-toolbar` `ui:email-banner` `ui:settings-section` `app:lifecycle` |
 | [spam-score](spam-score/) | A spam analysis section in the message details, from the spam filter's headers | `email:read` `ui:email-details` |
